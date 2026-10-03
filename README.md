@@ -1,10 +1,24 @@
 # AWS Three-Tier Architecture — ALB, ASG, S3, CloudFront
 
-Evolution of the [Part 1 / Part 2](../01-3-tier-basic/) learning stack: same Todo app and RDS MySQL, with production-oriented building blocks for **scalability**, **resilience**, and **simpler frontend delivery**.
+Evolution of the Part 1–2 learning stack ([`AWS Three Tier Basic`](https://github.com/mahisat/aws-basic-3-tier-architecture)): same Todo app and RDS MySQL, with production-oriented building blocks for **scalability**, **resilience**, and **simpler frontend delivery**.
 
-## How this differs from `01-3-tier-basic`
+## Documentation (Zero to Hero blog)
 
-| Area | Part 1–2 (`01-3-tier-basic`) | This repo (`02-three-tier-with-ALB`) |
+Step-by-step guides for Terraform, OIDC, and the original EC2-based stack are on **[Zero to Hero Terraform AWS](https://mahisat.github.io/terraform-aws-zero-to-hero/)** (GitHub Pages). Use this repo’s README for the **ALB + S3 + CloudFront** layout; follow the blog for shared concepts (VPC, RDS, IAM, GitHub Actions).
+
+| Topic | Link |
+|--------|------|
+| Series home | [mahisat.github.io/terraform-aws-zero-to-hero](https://mahisat.github.io/terraform-aws-zero-to-hero/) |
+| Part 1 — Terraform + AWS | [Three-tier with Terraform](https://mahisat.github.io/terraform-aws-zero-to-hero/posts/part-1-terraform-aws-three-tier/) |
+| Part 2 — GitHub Actions + OIDC | [CI/CD without long-lived keys](https://mahisat.github.io/terraform-aws-zero-to-hero/posts/part-2-github-actions-oidc/) |
+| Appendix — files deep dive | [Terraform & project files](https://mahisat.github.io/terraform-aws-zero-to-hero/reference/appendix-terraform-and-project-files/) |
+| Linux commands | [Reference](https://mahisat.github.io/terraform-aws-zero-to-hero/reference/linux-commands-reference/) |
+
+The blog lists **ALB / HTTPS / Multi-AZ** as coming soon; this repository is that production-oriented variant.
+
+## How this differs from [AWS Three Tier Basic](https://github.com/mahisat/aws-basic-3-tier-architecture)
+
+| Area | Part 1–2 ([AWS Three Tier Basic](https://github.com/mahisat/aws-basic-3-tier-architecture)) | This repo (`02-three-tier-with-ALB`) |
 |------|------------------------------|--------------------------------------|
 | Frontend | EC2 + nginx (SSH deploy) | **S3** static hosting + **CloudFront** (`/api` → ALB) |
 | Backend | Single EC2 in private subnet | **ALB** + **Auto Scaling Group** (private subnets, 2 AZs) |
@@ -35,6 +49,7 @@ Private outbound → NAT Gateway → Internet Gateway
 
 ## Prerequisites
 
+- Completed or skimmed [Part 1](https://mahisat.github.io/terraform-aws-zero-to-hero/posts/part-1-terraform-aws-three-tier/) and [Part 2](https://mahisat.github.io/terraform-aws-zero-to-hero/posts/part-2-github-actions-oidc/) (recommended)
 - AWS account and IAM permissions ([`terraform/IAM.md`](terraform/IAM.md), [`iam-terraform-least-privilege.json`](terraform/iam-terraform-least-privilege.json))
 - [Terraform](https://www.terraform.io/downloads) >= 1.5
 - Node.js 20+ for local dev
@@ -96,7 +111,7 @@ cd frontend && npm install && npm run dev
 
 Update `BACKEND_INSTANCE_TAG` in [`.github/workflows/backend-deployment.yml`](.github/workflows/backend-deployment.yml) if you change `var.project` (default `my-project-backend-server`).
 
-Part 2 secrets `EC2_PRIVATE_KEY`, `FRONTEND_EC2_PUBLIC_IP`, and `BACKEND_EC2_PRIVATE_IP` are **not used** in this architecture.
+Part 2 secrets `EC2_PRIVATE_KEY`, `FRONTEND_EC2_PUBLIC_IP`, and `BACKEND_EC2_PRIVATE_IP` are **not used** in this architecture. OIDC setup is covered in [Part 2](https://mahisat.github.io/terraform-aws-zero-to-hero/posts/part-2-github-actions-oidc/).
 
 ## Bootstrap / debug logs (backend EC2)
 
