@@ -117,7 +117,7 @@ function App() {
     <div className="todo-app">
       <header className="todo-header">
         <h1>Todo App</h1>
-        <p>Manage your tasks with full CRUD operations...!</p>
+        <p>Manage your tasks with full CRUD operations</p>
       </header>
 
       {error && (
