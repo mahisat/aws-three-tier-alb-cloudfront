@@ -14,22 +14,25 @@ export interface SystemStatus {
   nodeEnv: string
 }
 
-interface ApiSuccess<T> {
-  success: boolean
+type ApiSuccessBody<T> = {
+  success: true
   data: T
   date?: string
 }
 
+type ApiErrorBody = {
+  success: false
+  error: { message: string }
+}
+
 async function parseJson<T>(response: Response): Promise<T> {
-  const body = (await response.json()) as ApiSuccess<T> | { success: false; error: { message: string } }
-  if (!response.ok || !body.success) {
+  const body = (await response.json()) as ApiSuccessBody<T> | ApiErrorBody
+  if (!response.ok || body.success !== true) {
     const message =
-      'success' in body && body.success === false
-        ? body.error.message
-        : `Request failed (${response.status})`
+      body.success === false ? body.error.message : `Request failed (${response.status})`
     throw new Error(message)
   }
-  return (body as ApiSuccess<T>).data
+  return body.data
 }
 
 export async function fetchSystemStatus(): Promise<SystemStatus> {
