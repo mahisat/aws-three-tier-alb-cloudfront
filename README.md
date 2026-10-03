@@ -1,39 +1,44 @@
-# AWS Three-Tier Architecture (Terraform + React + Node.js + RDS)
+# AWS Three-Tier Architecture — ALB, ASG, S3, CloudFront
 
-A **Zero-to-Hero learning project**: deploy a Todo app on AWS with a classic **three-tier** design (React on EC2, Node API on EC2, RDS MySQL), managed by **Terraform**, with optional **GitHub Actions** deployment.
+Evolution of the [Part 1 / Part 2](../01-3-tier-basic/) learning stack: same Todo app and RDS MySQL, with production-oriented building blocks for **scalability**, **resilience**, and **simpler frontend delivery**.
+
+## How this differs from `01-3-tier-basic`
+
+| Area | Part 1–2 (`01-3-tier-basic`) | This repo (`02-three-tier-with-ALB`) |
+|------|------------------------------|--------------------------------------|
+| Frontend | EC2 + nginx (SSH deploy) | **S3** static hosting + **CloudFront** (`/api` → ALB) |
+| Backend | Single EC2 in private subnet | **ALB** + **Auto Scaling Group** (private subnets, 2 AZs) |
+| API exposure | nginx reverse proxy on frontend EC2 | CloudFront path `/api/*` → ALB → instances |
+| CI/CD frontend | SSH + `npm build` on EC2 | **OIDC** → `s3 sync` + CloudFront invalidation |
+| CI/CD backend | SSM to one instance | SSM to **all in-service** ASG instances |
+| Database | RDS MySQL | **Unchanged** (same Terraform pattern) |
 
 ## Architecture
 
 ```text
-Internet → Frontend EC2 (nginx :80, static UI, /api reverse proxy)
-         → Backend EC2 (:5000, private subnet)
-         → RDS MySQL (private subnets, two AZs for subnet group)
-Private outbound traffic → NAT Gateway → Internet Gateway
+Internet → CloudFront (HTTPS)
+              ├─ default: S3 (React static assets)
+              └─ /api/*, /health → ALB (public subnets, 2 AZs)
+                                        → ASG (private subnets, EC2 :5000)
+                                        → RDS MySQL (private subnets)
+Private outbound → NAT Gateway → Internet Gateway
 ```
 
 ## Repository structure
 
 | Path | Description |
 |------|-------------|
-| [`terraform/`](terraform/) | VPC, EC2, RDS, IAM, bootstrap scripts, IAM policy JSON |
-| [`frontend/`](frontend/) | React (Vite) SPA |
+| [`terraform/`](terraform/) | VPC, ALB, ASG, S3, CloudFront, RDS, IAM policy JSON |
+| [`frontend/`](frontend/) | React (Vite) SPA — build with `VITE_API_BASE_URL=/api` |
 | [`backend/`](backend/) | Express + TypeScript API |
-| [`.github/workflows/`](.github/workflows/) | Frontend (SSH) and backend (SSM + OIDC) deploy |
-| [`docs/`](docs/) | **Zero-to-Hero blog series** (Medium-ready Markdown) |
-
-## Learning path (recommended order)
-
-1. Read **[docs/series-00-zero-to-hero-index.md](docs/series-00-zero-to-hero-index.md)**
-2. **[Part 1 — Terraform + AWS](docs/01-terraform-aws-zero-to-hero.md)** — infrastructure, every Terraform file, debugging
-3. **[Part 2 — GitHub Actions + OIDC](docs/02-github-actions-oidc-zero-to-hero.md)** — CI/CD, trust policies, new GitHub `sub` claim format, architecture review
-4. **[Linux commands reference](docs/linux-commands-reference.md)** — `ssh`, `systemctl`, `curl`, `terraform`, etc.
+| [`.github/workflows/`](.github/workflows/) | Frontend (S3 + CloudFront) and backend (SSM + OIDC) deploy |
 
 ## Prerequisites
 
 - AWS account and IAM permissions ([`terraform/IAM.md`](terraform/IAM.md), [`iam-terraform-least-privilege.json`](terraform/iam-terraform-least-privilege.json))
 - [Terraform](https://www.terraform.io/downloads) >= 1.5
 - Node.js 20+ for local dev
-- **Public** GitHub repo URL in `terraform.tfvars` for EC2 `git clone` bootstrap (private repos — upcoming blog)
+- **Public** GitHub repo URL in `terraform.tfvars` for backend `git clone` bootstrap
 
 ## Quick start — Terraform
 
@@ -46,11 +51,13 @@ terraform init
 terraform plan
 terraform apply
 
-terraform output frontend_public_ip
-terraform output -raw backend_private_ip
+terraform output cloudfront_url
+terraform output alb_dns_name
 ```
 
-Open `http://<frontend_public_ip>/`. When finished: `terraform destroy`.
+Open the **CloudFront URL** from `terraform output cloudfront_url`. After apply, sync the first frontend build to S3 (see [`terraform/IAM.md`](terraform/IAM.md)) or run the GitHub Actions frontend workflow.
+
+When finished: `terraform destroy`.
 
 ## Quick start — local dev
 
@@ -62,24 +69,36 @@ cd backend && cp .env.example .env && npm install && npm run dev
 cd frontend && npm install && npm run dev
 ```
 
-## GitHub Actions (after Part 1)
+## GitHub Actions
 
-Configure secrets: `AWS_DEPLOY_ROLE_ARN`, `EC2_PRIVATE_KEY`, `FRONTEND_EC2_PUBLIC_IP`, `BACKEND_EC2_PRIVATE_IP`. See Part 2 and [`terraform/IAM.md`](terraform/IAM.md).
+**Secrets** (repository → Settings → Secrets and variables → Actions):
 
-## Bootstrap / debug logs (EC2)
+| Secret | Source |
+|--------|--------|
+| `AWS_DEPLOY_ROLE_ARN` | IAM OIDC role with `iam-github-deploy-least-privilege.json` |
+| `FRONTEND_S3_BUCKET` | `terraform output -raw frontend_s3_bucket` |
+| `FRONTEND_CLOUDFRONT_DISTRIBUTION_ID` | `terraform output -raw cloudfront_distribution_id` |
+| `FRONTEND_CLOUDFRONT_URL` | `terraform output -raw cloudfront_url` |
+
+Update `BACKEND_INSTANCE_TAG` in [`.github/workflows/backend-deployment.yml`](.github/workflows/backend-deployment.yml) if you change `var.project` (default `my-project-backend-server`).
+
+Part 2 secrets `EC2_PRIVATE_KEY`, `FRONTEND_EC2_PUBLIC_IP`, and `BACKEND_EC2_PRIVATE_IP` are **not used** in this architecture.
+
+## Bootstrap / debug logs (backend EC2)
 
 | Log | Purpose |
 |-----|---------|
-| `/var/log/cloud-init-output.log` | user_data |
+| `/var/log/cloud-init-output.log` | Launch template user_data |
 | `/var/log/backend-setup.log` | Backend bootstrap |
-| `/var/log/frontend-setup.log` | Frontend bootstrap |
 | `journalctl -u todo-backend` | API service |
 
-Manual repair: [`terraform/install-backend-service.sh`](terraform/install-backend-service.sh) (run as root on backend).
+ALB target health: EC2 console → Target groups → **healthy** on `/health`.
+
+Manual repair: [`terraform/install-backend-service.sh`](terraform/install-backend-service.sh) (run as root on a backend instance via SSM Session Manager).
 
 ## Cost warning
 
-**NAT Gateway** and **RDS** bill while resources exist. Destroy the stack when not learning.
+**NAT Gateway**, **CloudFront**, **ALB**, and **RDS** bill while resources exist. Destroy the stack when not learning.
 
 ## License
 

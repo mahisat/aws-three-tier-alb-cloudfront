@@ -1,11 +1,26 @@
-output "frontend_public_ip" {
-  description = "Public IP of the frontend EC2 instance"
-  value       = aws_instance.web_server.public_ip
+output "cloudfront_url" {
+  description = "HTTPS URL for the Todo app (S3 static site + /api via ALB)"
+  value       = "https://${aws_cloudfront_distribution.frontend.domain_name}"
 }
 
-output "backend_private_ip" {
-  description = "Private IP of the backend EC2 instance"
-  value       = aws_instance.backend_server.private_ip
+output "cloudfront_distribution_id" {
+  description = "CloudFront distribution ID (GitHub secret FRONTEND_CLOUDFRONT_DISTRIBUTION_ID)"
+  value       = aws_cloudfront_distribution.frontend.id
+}
+
+output "frontend_s3_bucket" {
+  description = "S3 bucket for built frontend assets (GitHub secret FRONTEND_S3_BUCKET)"
+  value       = aws_s3_bucket.frontend.id
+}
+
+output "alb_dns_name" {
+  description = "Public DNS name of the API Application Load Balancer (direct HTTP access for debugging)"
+  value       = aws_lb.api.dns_name
+}
+
+output "backend_asg_name" {
+  description = "Auto Scaling Group name for backend instances"
+  value       = aws_autoscaling_group.backend.name
 }
 
 output "rds_endpoint" {
@@ -14,17 +29,7 @@ output "rds_endpoint" {
   sensitive   = true
 }
 
-output "deployer_key_pem_path" {
-  description = "Local path to the generated SSH private key (add contents to GitHub secret EC2_PRIVATE_KEY)"
-  value       = local_file.main_private_key.filename
-}
-
-output "frontend_instance_id" {
-  description = "Frontend EC2 instance ID"
-  value       = aws_instance.web_server.id
-}
-
-output "backend_instance_id" {
-  description = "Backend EC2 instance ID (target for SSM deploy)"
-  value       = aws_instance.backend_server.id
+output "backend_instance_tag_name" {
+  description = "EC2 Name tag on backend instances (used by GitHub Actions SSM deploy)"
+  value       = "${var.project}-backend-server"
 }

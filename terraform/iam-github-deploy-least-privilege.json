@@ -17,6 +17,29 @@
       "Effect": "Allow",
       "Action": "ssm:DescribeDocument",
       "Resource": "arn:aws:ssm:*:*:document/AWS-RunShellScript"
+    },
+    {
+      "Sid": "DeployFrontendToS3",
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket",
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject"
+      ],
+      "Resource": [
+        "arn:aws:s3:::my-project-todo-frontend-*",
+        "arn:aws:s3:::my-project-todo-frontend-*/*"
+      ]
+    },
+    {
+      "Sid": "InvalidateCloudFront",
+      "Effect": "Allow",
+      "Action": [
+        "cloudfront:CreateInvalidation",
+        "cloudfront:GetInvalidation"
+      ],
+      "Resource": "arn:aws:cloudfront::YOUR_ACCOUNT_ID:distribution/*"
     }
   ]
 }

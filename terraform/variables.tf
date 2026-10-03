@@ -18,8 +18,14 @@ variable "vpc_cidr" {
 
 variable "public_subnet_cidr" {
   type        = string
-  description = "Public subnet CIDR block"
+  description = "Public subnet CIDR (AZ a) for ALB"
   default     = "10.0.1.0/24"
+}
+
+variable "public_subnet_cidr_2" {
+  type        = string
+  description = "Public subnet CIDR (AZ b) for ALB"
+  default     = "10.0.4.0/24"
 }
 
 variable "private_subnet_cidr" {
@@ -30,7 +36,7 @@ variable "private_subnet_cidr" {
 
 variable "private_subnet_cidr_2" {
   type        = string
-  description = "Secondary private subnet CIDR block (required for RDS subnet group)"
+  description = "Secondary private subnet CIDR block (required for RDS subnet group and ASG)"
   default     = "10.0.3.0/24"
 }
 
@@ -54,17 +60,29 @@ variable "db_password" {
 
 variable "github_repo_url" {
   type        = string
-  description = "Public GitHub repository URL cloned on EC2 instances"
+  description = "Public GitHub repository URL cloned on backend EC2 instances at boot"
 }
 
-variable "frontend_vite_api_base_url" {
+variable "backend_instance_type" {
   type        = string
-  description = "VITE_API_BASE_URL for production frontend build. Use /api with nginx (recommended for public users)."
-  default     = "/api"
+  description = "EC2 instance type for backend ASG"
+  default     = "t3.micro"
 }
 
-variable "frontend_use_backend_private_api_url" {
-  type        = bool
-  description = "If true, bake http://<backend private IP>:5000/api into the frontend build (browser must reach that IP; not for public internet)."
-  default     = false
+variable "asg_min_size" {
+  type        = number
+  description = "Minimum backend instances in the Auto Scaling Group"
+  default     = 1
+}
+
+variable "asg_max_size" {
+  type        = number
+  description = "Maximum backend instances in the Auto Scaling Group"
+  default     = 2
+}
+
+variable "asg_desired_capacity" {
+  type        = number
+  description = "Desired backend instances in the Auto Scaling Group"
+  default     = 1
 }
