@@ -86,3 +86,9 @@ variable "asg_desired_capacity" {
   description = "Desired backend instances in the Auto Scaling Group"
   default     = 1
 }
+
+variable "upload_frontend_assets" {
+  type        = bool
+  description = "Upload built files from ../frontend/dist into the S3 bucket. Build first: cd frontend && npm ci && npm run build (with VITE_API_BASE_URL=/api)."
+  default     = false
+}

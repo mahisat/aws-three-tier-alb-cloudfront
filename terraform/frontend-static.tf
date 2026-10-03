@@ -142,3 +142,42 @@ resource "aws_s3_bucket_policy" "frontend" {
   bucket = aws_s3_bucket.frontend.id
   policy = data.aws_iam_policy_document.frontend_bucket_policy.json
 }
+
+# Terraform creates the bucket only; static files live in frontend/dist after `npm run build`.
+# Set upload_frontend_assets = true in tfvars after building, or use scripts/publish-frontend.ps1.
+
+locals {
+  frontend_dist_path = "${path.module}/../frontend/dist"
+
+  frontend_mime_types = {
+    ".html" = "text/html;charset=utf-8"
+    ".css"  = "text/css;charset=utf-8"
+    ".js"   = "application/javascript;charset=utf-8"
+    ".json" = "application/json"
+    ".svg"  = "image/svg+xml"
+    ".png"  = "image/png"
+    ".ico"  = "image/x-icon"
+    ".webp" = "image/webp"
+    ".woff" = "font/woff"
+    ".woff2" = "font/woff2"
+  }
+}
+
+resource "aws_s3_object" "frontend_assets" {
+  for_each = var.upload_frontend_assets ? fileset(local.frontend_dist_path, "**") : toset([])
+
+  bucket = aws_s3_bucket.frontend.id
+  key    = each.value
+  source = "${local.frontend_dist_path}/${each.value}"
+  etag   = filemd5("${local.frontend_dist_path}/${each.value}")
+
+  content_type = lookup(
+    local.frontend_mime_types,
+    regex("\\.[^.]+$", each.value),
+    "application/octet-stream"
+  )
+
+  cache_control = endswith(each.value, ".html") ? "public,max-age=0,must-revalidate" : "public,max-age=31536000,immutable"
+
+  depends_on = [aws_s3_bucket_policy.frontend]
+}

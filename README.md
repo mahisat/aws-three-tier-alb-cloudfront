@@ -55,7 +55,21 @@ terraform output cloudfront_url
 terraform output alb_dns_name
 ```
 
-Open the **CloudFront URL** from `terraform output cloudfront_url`. After apply, sync the first frontend build to S3 (see [`terraform/IAM.md`](terraform/IAM.md)) or run the GitHub Actions frontend workflow.
+**Terraform does not upload your React app** — it only creates the empty S3 bucket and CloudFront distribution. Upload static files once after apply:
+
+```powershell
+# Windows (from repo root; AWS CLI credentials required)
+.\scripts\publish-frontend.ps1
+```
+
+```bash
+# Linux / macOS / Git Bash
+chmod +x scripts/publish-frontend.sh && ./scripts/publish-frontend.sh
+```
+
+Alternatively: run the **Deploy Frontend** GitHub Actions workflow, or set `upload_frontend_assets = true` in `terraform.tfvars` **after** `cd frontend && npm ci && npm run build`, then `terraform apply` again.
+
+Open the **CloudFront URL** from `terraform output cloudfront_url` (expect errors until the bucket has `index.html`).
 
 When finished: `terraform destroy`.
 
@@ -102,4 +116,4 @@ Manual repair: [`terraform/install-backend-service.sh`](terraform/install-backen
 
 ## License
 
-MIT (application). Adjust for your fork.
+This project is licensed under the [Apache License, Version 2.0](LICENSE). See the [LICENSE](LICENSE) file for the full text.
